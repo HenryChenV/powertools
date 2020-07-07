@@ -104,25 +104,59 @@ class CsvHelper(object):
         return cls.fields_records_to_stream([], records)
 
 
-def json_resp_to_csv(json_resp_path, output_path):
+def json_resp_to_csv(json_file_path, json_element_path, output_file_path):
+    """
+    :params
+        json_file_path: './demo.json'
+        json_element_path: '$.data.datas'
+        output_file_path: './demo.csv'
+    """
+    # read file
     content = None
-    with open(json_resp_path, 'rb') as fp:
+    with open(json_file_path, 'rb') as fp:
         content = fp.read()
-
     if not content:
+        print("content is empty, exit.")
         return
 
-    resp = json.loads(content)
-    records = resp['records']
+    # format to json
+    records = json.loads(content)
 
+    # extract json element
+    for element in (
+        e for e in json_element_path.lstrip('$').split('.') if len(e) > 0
+    ):
+        records = records[element]
     if len(records) == 0:
         print('records is empty.')
 
+    # json element to csv file
     fields = [(r, r, '') for r in records[0].keys()]
-
     fields, records = CsvHelper.data_to_records(records, fields)
-    CsvHelper.records_to_file(fields, records, output_path)
+    CsvHelper.records_to_file(fields, records, output_file_path)
+
+
+PROMPT = """
+    Usage: python {this_file} <json_file_path> <json_element_path> <output_file_path>
+
+        json_file_path: required, eg: ./demo.json
+        json_element_path: required, eg: $.data.datas
+        output_file_path: optional, eg: demo.csv, default <json_file_path>.csv
+"""
 
 
 if __name__ == "__main__":
-    json_resp_to_csv(sys.argv[1], sys.argv[2])
+
+    if (len(sys.argv) not in (3, 4)):
+        print(PROMPT.format(this_file=sys.argv[0]))
+        sys.exit(1)
+
+    json_file_path = sys.argv[1]
+    json_element_path = sys.argv[2]
+
+    if len(sys.argv) == 4:
+        output_file_path = sys.argv[3]
+    else:
+        output_file_path = json_file_path.rstrip('json').rstrip('.') + ".csv"
+
+    json_resp_to_csv(json_file_path, json_element_path, output_file_path)
